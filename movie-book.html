@@ -8,15 +8,22 @@
         :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --seat-free: #64748b; --seat-selected: #10b981; --seat-occupied: #334155; --text: #f8fafc; --text-muted: #94a3b8; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        .movie-selector { margin-bottom: 30px; }
-        select { background: #334155; color: white; border: 1px solid #475569; padding: 12px; border-radius: 8px; font-size: 1rem; width: 100%; outline: none; }
+        .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; }
+        
+        .movie-header { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary); }
+        .timer-box { position: absolute; top: 30px; right: 30px; background: #ef4444; padding: 5px 12px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; display: none; }
+        
         .screen-container { display: flex; flex-direction: column; align-items: center; margin: 30px 0; }
         .screen { width: 80%; height: 8px; background: white; border-radius: 50%; box-shadow: 0 6px 20px rgba(255,255,255,0.4); margin-bottom: 20px; }
         .seating-map { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; max-width: 500px; }
         .seat { width: 35px; height: 35px; background: var(--seat-free); border-radius: 6px 6px 0 0; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
         .seat.selected { background: var(--seat-selected); box-shadow: 0 0 10px var(--seat-selected); }
         .seat.occupied { background: var(--seat-occupied); cursor: not-allowed; color: #475569; }
+        
+        .ticket-types { margin-top: 25px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px; display: none; }
+        .ticket-type-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .ticket-type-row input { width: 60px; padding: 5px; background: #334155; border: 1px solid #475569; color: white; border-radius: 4px; text-align: center; }
+
         .legend { display: flex; justify-content: center; gap: 20px; list-style: none; margin-top: 20px; font-size: 0.9rem; }
         .legend li { display: flex; align-items: center; gap: 8px; }
         .summary-box { border-top: 1px solid #334155; padding-top: 20px; margin-top: 25px; display: flex; justify-content: space-between; align-items: center; }
@@ -28,13 +35,11 @@
 <body>
 
 <div class="container">
-    <h2>Helyfoglalás</h2>
-    <div class="movie-selector">
-        <select id="movie-select">
-            <option value="inception">Inception - Eredet (IMAX 2D)</option>
-            <option value="interstellar">Interstellar (Digital 4K)</option>
-            <option value="dune2">Dune: Part Two (VIP)</option>
-        </select>
+    <div class="timer-box" id="timer">Idő: 60s</div>
+    
+    <div class="movie-header">
+        <h2 id="active-movie-title">Film betöltése...</h2>
+        <p id="active-movie-meta" style="color: var(--text-muted); font-size: 0.9rem;"></p>
     </div>
 
     <div class="screen-container">
@@ -49,9 +54,22 @@
         <li><div class="seat occupied"></div> Foglalt</li>
     </ul>
 
+    <div class="ticket-types" id="ticket-types-panel">
+        <h4 style="margin-bottom: 10px;">Jegytípusok beállítása:</h4>
+        <div class="ticket-type-row">
+            <span>Felnőtt jegy (2500 Ft)</span>
+            <input type="number" id="type-adult" min="0" value="0">
+        </div>
+        <div class="ticket-type-row">
+            <span>Diák / Nyugdíjas jegy (2000 Ft)</span>
+            <input type="number" id="type-student" min="0" value="0">
+        </div>
+    </div>
+
     <div class="summary-box">
         <div>
             <p id="summary-seats">Kiválasztott székek: -</p>
+            <p id="summary-price" style="font-size: 1.2rem; font-weight: bold; color: #10b981; margin-top: 5px;">0 Ft</p>
         </div>
         <button class="btn" id="next-btn" disabled>Tovább a fizetéshez</button>
     </div>
@@ -73,34 +91,64 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // Film adatbázis lokálisan az URL azonosításhoz
+    const movieDatabase = {
+        "inception": { title: "Inception - Eredet (IMAX 2D)", meta: "Terem: 3. terem | Időpont: 19:45" },
+        "interstellar": { title: "Interstellar (Digital 4K)", meta: "Terem: 1. terem | Időpont: 21:00" },
+        "dune2": { title: "Dune: Part Two (VIP)", meta: "Terem: VIP terem | Időpont: 18:00" }
+    };
+
+    // URL paraméter kiolvasása (?movie=inception)
+    const urlParams = new URLSearchParams(window.location.search);
+    const movieKey = urlParams.get('movie') || 'inception'; 
+    const currentMovie = movieDatabase[movieKey];
+
+    document.getElementById('active-movie-title').innerText = currentMovie.title;
+    document.getElementById('active-movie-meta').innerText = currentMovie.meta;
+
     const mapContainer = document.getElementById('map');
-    const movieSelect = document.getElementById('movie-select');
     const nextBtn = document.getElementById('next-btn');
-    
+    const timerBox = document.getElementById('timer');
+    const adultInput = document.getElementById('type-adult');
+    const studentInput = document.getElementById('type-student');
+
     let selectedSeats = [];
+    let timeLeft = 60;
+    let timerInterval;
+
+    function startTimer() {
+        timerBox.style.display = "block";
+        clearInterval(timerInterval);
+        timeLeft = 60;
+        timerBox.innerText = `Idő: ${timeLeft}s`;
+        
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerBox.innerText = `Idő: ${timeLeft}s`;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                alert("A foglalási idő lejárt! Kérjük, válaszd ki újra a helyeket.");
+                window.location.reload();
+            }
+        }, 1000);
+    }
 
     async function loadHall() {
         mapContainer.innerHTML = '';
-        selectedSeats = [];
-        updateUI();
-
-        const currentMovie = movieSelect.value;
-        
-        // Lekérjük a már elfoglalt székeket a Firebase-ből
         const occupiedSeats = new Set();
+        
         try {
             const querySnapshot = await getDocs(collection(db, "tickets"));
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                if (data.movieKey === currentMovie && data.status !== "Voided") {
+                if (data.movieKey === movieKey && data.status !== "Voided") {
                     occupiedSeats.add(data.seatId);
                 }
             });
         } catch (e) {
-            console.error("Hiba az adatok beolvasásakor: ", e);
+            console.error(e);
         }
 
-        // Térkép felépítése (6 sor, 10 oszlop)
         for (let r = 1; r <= 6; r++) {
             for (let c = 1; c <= 10; c++) {
                 const seatId = `${r}-${c}`;
@@ -112,12 +160,19 @@
                     seat.classList.add('occupied');
                 } else {
                     seat.addEventListener('click', () => {
+                        if (selectedSeats.length === 0) startTimer(); // Első kattintásra indul a kosár-időzítő
+                        
                         seat.classList.toggle('selected');
                         if (seat.classList.contains('selected')) {
                             selectedSeats.push(seatId);
                         } else {
                             selectedSeats = selectedSeats.filter(s => s !== seatId);
                         }
+                        
+                        // Automatikusan igazítjuk a jegytípus darabszámát a székekhez
+                        adultInput.value = selectedSeats.length;
+                        studentInput.value = 0;
+                        
                         updateUI();
                     });
                 }
@@ -126,26 +181,46 @@
         }
     }
 
-    function updateUI() {
-        document.getElementById('summary-seats').innerText = selectedSeats.length > 0 ? `Kiválasztott székek: ${selectedSeats.join(', ')}` : "Kiválasztott székek: -";
-        nextBtn.disabled = selectedSeats.length === 0;
+    function calculatePrice() {
+        const adultCount = parseInt(adultInput.value) || 0;
+        const studentCount = parseInt(studentInput.value) || 0;
+        return (adultCount * 2500) + (studentCount * 2000);
     }
 
+    function updateUI() {
+        const totalTicketsNeeded = selectedSeats.length;
+        document.getElementById('ticket-types-panel').style.display = totalTicketsNeeded > 0 ? "block" : "none";
+        document.getElementById('summary-seats').innerText = totalTicketsNeeded > 0 ? `Kiválasztott székek: ${selectedSeats.join(', ')}` : "Kiválasztott székek: -";
+        
+        // Ellenőrzés, hogy a jegytípusok összege egyezik-e a székek számával
+        const currentTotalInputs = (parseInt(adultInput.value) || 0) + (parseInt(studentInput.value) || 0);
+        
+        document.getElementById('summary-price').innerText = calculatePrice().toLocaleString() + " Ft";
+        nextBtn.disabled = totalTicketsNeeded === 0 || currentTotalInputs !== totalTicketsNeeded;
+    }
+
+    [adultInput, studentInput].forEach(input => {
+        input.addEventListener('input', () => {
+            // Nem engedjük, hogy több jegyet osszanak szét, mint ahány széket választottak
+            const totalTicketsNeeded = selectedSeats.length;
+            const currentTotal = (parseInt(adultInput.value) || 0) + (parseInt(studentInput.value) || 0);
+            if (currentTotal > totalTicketsNeeded) {
+                input.value = Math.max(0, input.value - (currentTotal - totalTicketsNeeded));
+            }
+            updateUI();
+        });
+    });
+
     nextBtn.addEventListener('click', () => {
-        const movieKey = movieSelect.value;
-        const movieName = movieSelect.options[movieSelect.selectedIndex].text;
-        
-        // Átadni kívánt adatok továbbküldése SessionStorage-dzsal biztonságosan
         sessionStorage.setItem('booking_movie_key', movieKey);
-        sessionStorage.setItem('booking_movie_name', movieName);
+        sessionStorage.setItem('booking_movie_name', currentMovie.title);
         sessionStorage.setItem('booking_seats', JSON.stringify(selectedSeats));
-        
-        // Átirányítás a fizetési felületre egy egyedi azonosítóval
+        sessionStorage.setItem('booking_total_price', calculatePrice());
+
         const fakeTxId = "TX-" + Math.floor(100000 + Math.random() * 900000);
         window.location.href = `payment.html?id=${fakeTxId}`;
     });
 
-    movieSelect.addEventListener('change', loadHall);
     loadHall();
 </script>
 </body>
