@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Helyfoglalás</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --seat-free: #64748b; --seat-selected: #10b981; --seat-occupied: #334155; --text: #f8fafc; --text-muted: #94a3b8; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .movie-selector { margin-bottom: 30px; }
+        select { background: #334155; color: white; border: 1px solid #475569; padding: 12px; border-radius: 8px; font-size: 1rem; width: 100%; outline: none; }
+        .screen-container { display: flex; flex-direction: column; align-items: center; margin: 30px 0; }
+        .screen { width: 80%; height: 8px; background: white; border-radius: 50%; box-shadow: 0 6px 20px rgba(255,255,255,0.4); margin-bottom: 20px; }
+        .seating-map { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; max-width: 500px; }
+        .seat { width: 35px; height: 35px; background: var(--seat-free); border-radius: 6px 6px 0 0; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+        .seat.selected { background: var(--seat-selected); box-shadow: 0 0 10px var(--seat-selected); }
+        .seat.occupied { background: var(--seat-occupied); cursor: not-allowed; color: #475569; }
+        .legend { display: flex; justify-content: center; gap: 20px; list-style: none; margin-top: 20px; font-size: 0.9rem; }
+        .legend li { display: flex; align-items: center; gap: 8px; }
+        .summary-box { border-top: 1px solid #334155; padding-top: 20px; margin-top: 25px; display: flex; justify-content: space-between; align-items: center; }
+        .btn { background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; }
+        .btn:hover { background: #dc2626; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Helyfoglalás</h2>
+    <div class="movie-selector">
+        <select id="movie-select">
+            <option value="inception">Inception - Eredet (IMAX 2D)</option>
+            <option value="interstellar">Interstellar (Digital 4K)</option>
+            <option value="dune2">Dune: Part Two (VIP)</option>
+        </select>
+    </div>
+
+    <div class="screen-container">
+        <div class="screen"></div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); letter-spacing: 2px;">VÁSZON</p>
+        <div class="seating-map" id="map"></div>
+    </div>
+
+    <ul class="legend">
+        <li><div class="seat"></div> Szabad</li>
+        <li><div class="seat selected"></div> Kiválasztott</li>
+        <li><div class="seat occupied"></div> Foglalt</li>
+    </ul>
+
+    <div class="summary-box">
+        <div>
+            <p id="summary-seats">Kiválasztott székek: -</p>
+        </div>
+        <button class="btn" id="next-btn" disabled>Tovább a fizetéshez</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCl7wsIHzdHcmnJSMZZCieacZROxlJnxvI",
+        authDomain: "creacredit-szuper1212856.firebaseapp.com",
+        projectId: "creacredit-szuper1212856",
+        storageBucket: "creacredit-szuper1212856.firebasestorage.app",
+        messagingSenderId: "480853534754",
+        appId: "1:480853534754:web:92ea16cacdcb382659427b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const mapContainer = document.getElementById('map');
+    const movieSelect = document.getElementById('movie-select');
+    const nextBtn = document.getElementById('next-btn');
+    
+    let selectedSeats = [];
+
+    async function loadHall() {
+        mapContainer.innerHTML = '';
+        selectedSeats = [];
+        updateUI();
+
+        const currentMovie = movieSelect.value;
+        
+        // Lekérjük a már elfoglalt székeket a Firebase-ből
+        const occupiedSeats = new Set();
+        try {
+            const querySnapshot = await getDocs(collection(db, "tickets"));
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.movieKey === currentMovie && data.status !== "Voided") {
+                    occupiedSeats.add(data.seatId);
+                }
+            });
+        } catch (e) {
+            console.error("Hiba az adatok beolvasásakor: ", e);
+        }
+
+        // Térkép felépítése (6 sor, 10 oszlop)
+        for (let r = 1; r <= 6; r++) {
+            for (let c = 1; c <= 10; c++) {
+                const seatId = `${r}-${c}`;
+                const seat = document.createElement('div');
+                seat.classList.add('seat');
+                seat.innerText = seatId;
+
+                if (occupiedSeats.has(seatId)) {
+                    seat.classList.add('occupied');
+                } else {
+                    seat.addEventListener('click', () => {
+                        seat.classList.toggle('selected');
+                        if (seat.classList.contains('selected')) {
+                            selectedSeats.push(seatId);
+                        } else {
+                            selectedSeats = selectedSeats.filter(s => s !== seatId);
+                        }
+                        updateUI();
+                    });
+                }
+                mapContainer.appendChild(seat);
+            }
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('summary-seats').innerText = selectedSeats.length > 0 ? `Kiválasztott székek: ${selectedSeats.join(', ')}` : "Kiválasztott székek: -";
+        nextBtn.disabled = selectedSeats.length === 0;
+    }
+
+    nextBtn.addEventListener('click', () => {
+        const movieKey = movieSelect.value;
+        const movieName = movieSelect.options[movieSelect.selectedIndex].text;
+        
+        // Átadni kívánt adatok továbbküldése SessionStorage-dzsal biztonságosan
+        sessionStorage.setItem('booking_movie_key', movieKey);
+        sessionStorage.setItem('booking_movie_name', movieName);
+        sessionStorage.setItem('booking_seats', JSON.stringify(selectedSeats));
+        
+        // Átirányítás a fizetési felületre egy egyedi azonosítóval
+        const fakeTxId = "TX-" + Math.floor(100000 + Math.random() * 900000);
+        window.location.href = `payment.html?id=${fakeTxId}`;
+    });
+
+    movieSelect.addEventListener('change', loadHall);
+    loadHall();
+</script>
+</body>
+</html>

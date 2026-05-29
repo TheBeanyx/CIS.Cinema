@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Műsoron</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --text: #f8fafc; --text-muted: #94a3b8; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display:<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Műsoron</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --text: #f8fafc; --text-muted: #94a3b8; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1000px; }
+        h1 { margin-bottom: 10px; text-align: center; }
+        .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 40px; }
+        .nav-link { display: inline-block; background: #334155; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; margin-bottom: 20px; transition: 0.2s; }
+        .nav-link:hover { background: #475569; }
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+        .movie-card { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; }
+        .movie-details { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .movie-title { font-size: 1.3rem; margin-bottom: 8px; color: #fff; }
+        .movie-meta { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; }
+        .btn { display: block; text-align: center; background: var(--primary); color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: #dc2626; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>CineMax Multiplex</h1>
+    <p class="subtitle">Üdvözöljük a mozi világában! Válasszon az aktuális kínálatunkból.</p>
+    
+    <a href="movie-book.html" class="nav-link">➔ Jegyfoglalás és Teremterp</a>
+
+    <div class="movie-grid">
+        <div class="movie-card">
+            <div class="movie-details">
+                <div>
+                    <h3 class="movie-title">Inception - Eredet</h3>
+                    <p class="movie-meta">Sci-Fi / Akció | 148 perc | IMAX 2D</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 20px;">Dom Cobb professzionális tolvaj, szakterülete a tudatalatti: titkokat lop el az álom fázisában.</p>
+                </div>
+                <a href="movie-book.html" class="btn">Jegyvásárlás</a>
+            </div>
+        </div>
+        <div class="movie-card">
+            <div class="movie-details">
+                <div>
+                    <h3 class="movie-title">Interstellar - Csillagok között</h3>
+                    <p class="movie-meta">Sci-Fi / Dráma | 169 perc | Digital 4K</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 20px;">Felfedezők egy csoportja az emberiség történelmének legfontosabb küldetésére indul: utazás a galaxison túlra.</p>
+                </div>
+                <a href="movie-book.html" class="btn">Jegyvásárlás</a>
+            </div>
+        </div>
+        <div class="movie-card">
+            <div class="movie-details">
+                <div>
+                    <h3 class="movie-title">Dune: Part Two</h3>
+                    <p class="movie-meta">Sci-Fi / Kaland | 166 perc | VIP Terem</p>
+                    <p style="font-size: 0.9rem; margin-bottom: 20px;">Paul Atreides bosszúhadjárata azok ellen, akik elpusztították a családját, miközben megpróbálja megakadályozni a jövőt.</p>
+                </div>
+                <a href="movie-book.html" class="btn">Jegyvásárlás</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

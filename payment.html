@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Fizetés</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #10b981; --text: #f8fafc; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; justify-content: center; }
+        .container { width: 100%; max-width: 500px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h2 { margin-bottom: 15px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.9rem; margin-bottom: 5px; color: #94a3b8; }
+        input { width: 100%; padding: 12px; background: #334155; border: 1px solid #475569; color: white; border-radius: 8px; outline: none; }
+        .details-box { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; }
+        .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s; }
+        .btn:hover { background: #059669; }
+        
+        /* Rejtett jegysablon az exportáláshoz */
+        #ticket-wrapper { position: absolute; left: -9999px; top: -9999px; }
+        .ticket-box { width: 380px; background: #ffffff; color: #0f172a; padding: 25px; border-radius: 12px; text-align: center; border: 2px dashed #cbd5e1; }
+        .ticket-box h3 { color: #ef4444; margin-bottom: 15px; }
+        .qr-zone { display: flex; justify-content: center; margin: 20px 0; }
+        .t-id { font-family: monospace; font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Fizetés szimuláció</h2>
+    <div class="details-box">
+        <p><strong>Film:</strong> <span id="p-movie">-</span></p>
+        <p><strong>Székek:</strong> <span id="p-seats">-</span></p>
+    </div>
+
+    <form id="pay-form">
+        <div class="form-group">
+            <label>Teljes név</label>
+            <input type="text" id="cust-name" required placeholder="Minta János">
+        </div>
+        <div class="form-group">
+            <label>E-mail cím</label>
+            <input type="email" id="cust-email" required placeholder="janos@example.com">
+        </div>
+        <button type="submit" class="btn" id="submit-btn">Fizetés és Jegyek Letöltése</button>
+    </form>
+</div>
+
+<div id="ticket-wrapper">
+    <div class="ticket-box" id="ticket-element">
+        <h3>CINEMAX BELÉPŐ</h3>
+        <p style="font-size: 0.8rem; color: #64748b;">E-TICKET</p>
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;">
+        <p style="font-weight: bold; font-size: 1.1rem;" id="t-movie-title">-</p>
+        <p id="t-seat-id" style="margin-top: 5px; font-weight: bold; color: #475569;">Sor-Szék: -</p>
+        <p id="t-owner" style="font-size: 0.9rem; color: #475569; margin-top: 3px;">Név: -</p>
+        <div class="qr-zone" id="qrcode"></div>
+        <p style="font-size: 0.75rem; color: #94a3b8;">Jegy azonosító:</p>
+        <span class="t-id" id="t-ticket-id">-</span>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCl7wsIHzdHcmnJSMZZCieacZROxlJnxvI",
+        authDomain: "creacredit-szuper1212856.firebaseapp.com",
+        projectId: "creacredit-szuper1212856",
+        storageBucket: "creacredit-szuper1212856.firebasestorage.app",
+        messagingSenderId: "480853534754",
+        appId: "1:480853534754:web:92ea16cacdcb382659427b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const mKey = sessionStorage.getItem('booking_movie_key');
+    const mName = sessionStorage.getItem('booking_movie_name');
+    const seats = JSON.parse(sessionStorage.getItem('booking_seats') || '[]');
+
+    if(!mKey || seats.length === 0) {
+        window.location.href = 'movie-book.html';
+    }
+
+    document.getElementById('p-movie').innerText = mName;
+    document.getElementById('p-seats').innerText = seats.join(', ');
+
+    document.getElementById('pay-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Fizetés feldolgozása...";
+
+        const customerName = document.getElementById('cust-name').value;
+        const customerEmail = document.getElementById('cust-email').value;
+
+        // Jelenlegi webcím meghatározása a dinamikus ellenőrző linkhez
+        const baseWebAddress = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+
+        for (const seat of seats) {
+            const ticketId = "TCK-" + Math.floor(100000 + Math.random() * 900000);
+            
+            // Pontos link generálás a feladathoz mérten
+            const checkUrl = `${baseWebAddress}/check.ticket.html?id=${ticketId}`;
+
+            // 1. Mentés Firebase-be
+            await setDoc(doc(db, "tickets", ticketId), {
+                ticketId: ticketId,
+                movieKey: mKey,
+                movieName: mName,
+                seatId: seat,
+                ownerName: customerName,
+                ownerEmail: customerEmail,
+                status: "Valid"
+            });
+
+            // 2. Kép generálása a rejtett sablonnal
+            document.getElementById('t-movie-title').innerText = mName;
+            document.getElementById('t-seat-id').innerText = `Szék: ${seat}`;
+            document.getElementById('t-owner').innerText = `Név: ${customerName}`;
+            document.getElementById('t-ticket-id').innerText = ticketId;
+            document.getElementById('qrcode').innerHTML = "";
+
+            new QRCode(document.getElementById('qrcode'), {
+                text: checkUrl,
+                width: 140,
+                height: 140
+            });
+
+            // Várjunk egy picit, amíg a QR-kód kirajzolódik a DOM-ba
+            await new Promise(r => setTimeout(r, 300));
+
+            // html2canvas képkészítés és letöltés automatizálása
+            const ticketElement = document.getElementById('ticket-element');
+            await html2canvas(ticketElement, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL("image/png");
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imgData;
+                downloadLink.download = `CineMax_Jegy_${seat}_${ticketId}.png`;
+                downloadLink.click();
+            });
+        }
+
+        alert("Sikeres fizetés! A jegyeid kép formátumban (.png) letöltésre kerültek.");
+        sessionStorage.clear();
+        window.location.href = 'movies.html';
+    });
+</script>
+</body>
+</html>

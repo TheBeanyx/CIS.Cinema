@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Jegyellenőrzés</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; justify-content: center; }
+        .container { width: 100%; max-width: 450px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; }
+        .status-badge { display: inline-block; padding: 10px 20px; border-radius: 30px; font-weight: bold; margin-bottom: 20px; font-size: 1.1rem; }
+        .valid { background: #10b981; color: white; }
+        .voided { background: #ef4444; color: white; }
+        .loading { background: #4b5563; color: white; }
+        .info-box { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 25px; text-align: left; }
+        .info-box p { margin-bottom: 10px; font-size: 1rem; }
+        .info-box p strong { color: #94a3b8; }
+        .btn { width: 100%; background: #f59e0b; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.05rem; transition: 0.2s; }
+        .btn:hover { background: #d97706; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="margin-bottom: 20px;">Jegy Ellenőrző Rendszer</h2>
+    
+    <div id="status-indicator" class="status-badge loading">Betöltés...</div>
+
+    <div class="info-box" id="info-panel" style="display: none;">
+        <p><strong>Film:</strong> <span id="v-movie">-</span></p>
+        <p><strong>Ülőhely:</strong> <span id="v-seat">-</span></p>
+        <p><strong>Tulajdonos:</strong> <span id="v-owner">-</span></p>
+        <p><strong>Jegy ID:</strong> <span id="v-id" style="font-family: monospace;">-</span></p>
+    </div>
+
+    <button class="btn" id="void-btn" style="display: none;">Beolvasás és Érvénytelenítés</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCl7wsIHzdHcmnJSMZZCieacZROxlJnxvI",
+        authDomain: "creacredit-szuper1212856.firebaseapp.com",
+        projectId: "creacredit-szuper1212856",
+        storageBucket: "creacredit-szuper1212856.firebasestorage.app",
+        messagingSenderId: "480853534754",
+        appId: "1:480853534754:web:92ea16cacdcb382659427b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const ticketId = urlParams.get('id');
+
+    const statusIndicator = document.getElementById('status-indicator');
+    const infoPanel = document.getElementById('info-panel');
+    const voidBtn = document.getElementById('void-btn');
+
+    async function checkTicket() {
+        if (!ticketId) {
+            statusIndicator.className = "status-badge voided";
+            statusIndicator.innerText = "HIBA: Nincs jegy ID megadva";
+            return;
+        }
+
+        const docRef = doc(db, "tickets", ticketId);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            document.getElementById('v-movie').innerText = data.movieName;
+            document.getElementById('v-seat').innerText = data.seatId;
+            document.getElementById('v-owner').innerText = data.ownerName;
+            document.getElementById('v-id').innerText = data.ticketId;
+            infoPanel.style.display = "block";
+
+            if (data.status === "Valid") {
+                statusIndicator.className = "status-badge valid";
+                statusIndicator.innerText = "ÉRVÉNYES JEGY";
+                voidBtn.style.display = "block";
+            } else {
+                statusIndicator.className = "status-badge voided";
+                statusIndicator.innerText = "MÁR FELHASZNÁLT / ÉRVÉNYTELEN";
+                voidBtn.style.display = "none";
+            }
+        } else {
+            statusIndicator.className = "status-badge voided";
+            statusIndicator.innerText = "A JEGY NEM LÉTEZIK A RENDSZERBEN";
+        }
+    }
+
+    voidBtn.addEventListener('click', async () => {
+        voidBtn.disabled = true;
+        voidBtn.innerText = "Érvénytelenítés...";
+        
+        try {
+            const docRef = doc(db, "tickets", ticketId);
+            await updateDoc(docRef, {
+                status: "Voided"
+            });
+            alert("A jegy sikeresen leolvasva és érvénytelenítve lett!");
+            checkTicket();
+        } catch (error) {
+            alert("Hiba történt: " + error.message);
+            voidBtn.disabled = false;
+        }
+    });
+
+    checkTicket();
+</script>
+</body>
+</html>
