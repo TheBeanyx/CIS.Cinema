@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Élő Vetítés</title>
+    <style>
+        :root { --bg: #05070f; --card: #111827; --primary: #ef4444; --text: #f8fafc; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        
+        .cinema-container { width: 100%; max-width: 900px; background: var(--card); padding: 20px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); text-align: center; }
+        
+        /* Virtuális Mozi Vászon Lejátszó */
+        .video-canvas { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; margin: 20px 0; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(59, 130, 246, 0.2); }
+        .video-placeholder-text { font-size: 1.2rem; color: #4b5563; animation: pulse 2s infinite; }
+        
+        .controls { display: flex; justify-content: space-between; align-items: center; padding: 10px 5px; }
+        .btn { background: #1f2937; color: white; border: 1px solid #374151; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { background: #374151; }
+        .btn-share { background: #3b82f6; border: none; }
+        .btn-share:hover { background: #2563eb; }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cinema-container">
+    <h2 id="movie-playing-title">CineMax Virtuális Terem</h2>
+    <p style="color: #64748b; font-size: 0.85rem; margin-top: 5px;">Jegy azonosító alapján hitelesített közvetítés</p>
+
+    <div class="video-canvas">
+        <iframe width="100%" height="100%" src="https://www.youtube.com/embed/ScMzIvxBSi4?autoplay=1&mute=1&controls=0&loop=1&playlist=ScMzIvxBSi4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position: absolute; top:0; left:0; pointer-events: none;"></iframe>
+        <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(239, 68, 68, 0.8); padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px;">ÉLŐ KÖZVETÍTÉS</div>
+    </div>
+
+    <div class="controls">
+        <span style="color: #10b981; font-size: 0.95rem; font-weight: bold;">● Kapcsolat stabil - Full HD</span>
+        
+        <button class="btn btn-share" id="share-screen-btn">
+            💻 Átküldés Laptopra
+        </button>
+    </div>
+</div>
+
+<script>
+    // Lekérjük az ID-t, hogy a megosztott link is pontosan ugyanezt a hitelesített munkamenetet vigye át
+    const urlParams = new URLSearchParams(window.location.search);
+    const watchId = urlParams.get('id') || 'DEMO';
+
+    // Dinamikus natív megosztás (Telefonon megnyitja az eszköz megosztási menüjét: AirDrop, Nearby Share, Chat alkalmazások)
+    document.getElementById('share-screen-btn').addEventListener('click', async () => {
+        const shareData = {
+            title: 'CineMax - Élő Mozi közvetítés',
+            text: 'Nyisd meg ezt a linket a laptopodon a film megtekintéséhez!',
+            url: window.location.href
+        };
+
+        try {
+            if (navigator.share) {
+                // Mobiltelefonokon ez azonnal felhozza a natív megosztási ablakot
+                await navigator.share(shareData);
+            } else {
+                // Ha asztali gépen vagy olyan böngészőben nyitják meg, ami nem támogatja, vágólapra másolja
+                await navigator.clipboard.writeText(window.location.href);
+                alert("A közvetítés linkje másolva a vágólapra! Küldd át a laptopodra (pl. másold be egy böngészőbe) a folytatáshoz.");
+            }
+        } catch (err) {
+            console.log('Megosztási hiba vagy megszakítás:', err);
+        }
+    });
+</script>
+</body>
+</html>
