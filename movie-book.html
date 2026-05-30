@@ -10,7 +10,11 @@
         body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         
-        .movie-header { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--primary); }
+        /* Lenyíló menük konténere */
+        .booking-selectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-top: 4px solid var(--primary); }
+        .selector-group { display: flex; flex-direction: column; gap: 5px; }
+        .selector-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: bold; }
+        select { background: #334155; color: white; border: 1px solid #475569; padding: 10px; border-radius: 6px; font-size: 0.95rem; outline: none; cursor: pointer; }
         
         .screen-container { display: flex; flex-direction: column; align-items: center; margin: 30px 0; }
         .screen { width: 80%; height: 8px; background: white; border-radius: 50%; box-shadow: 0 6px 20px rgba(255,255,255,0.4); margin-bottom: 20px; }
@@ -19,7 +23,6 @@
         .seat.selected { background: var(--seat-selected); box-shadow: 0 0 10px var(--seat-selected); }
         .seat.occupied { background: var(--seat-occupied); cursor: not-allowed; color: #475569; }
         
-        /* Jegyek listája */
         .ticket-list-container { margin-top: 25px; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px; }
         .ticket-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 0.95rem; }
         .ticket-item:last-child { border-bottom: none; }
@@ -32,7 +35,7 @@
         .btn:hover { background: #dc2626; }
         .btn:disabled { background: #475569; cursor: not-allowed; }
 
-        /* MODAL / FELUGRÓ ABLAK STÍLUS */
+        /* MODAL / JEGYTÍPUS VÁLASZTÓ WINDOW */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; display: none; }
         .modal { background: #1e293b; padding: 25px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #475569; }
         .modal h3 { margin-bottom: 15px; }
@@ -44,9 +47,29 @@
 <body>
 
 <div class="container">
-    <div class="movie-header">
-        <h2 id="active-movie-title">Dune: Part Two</h2>
-        <p id="active-movie-meta" style="color: var(--text-muted); font-size: 0.9rem;">Időpont betöltése...</p>
+    
+    <div class="booking-selectors">
+        <div class="selector-group">
+            <label>Film</label>
+            <select id="select-movie">
+                <option value="dune2">Dune: Part Two</option>
+                <option value="inception">Inception - Eredet</option>
+                <option value="interstellar">Interstellar</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label>Nap</label>
+            <select id="select-day">
+                <option value="ma">Ma</option>
+                <option value="holnap">Holnap</option>
+                <option value="holnaputan">Holnapután</option>
+            </select>
+        </div>
+        <div class="selector-group">
+            <label>Időpontok</label>
+            <select id="select-time">
+                </select>
+        </div>
     </div>
 
     <div class="screen-container">
@@ -105,15 +128,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // URL paraméterek feldolgozása (?movie=dune2&day=ma&time=18:00)
-    const urlParams = new URLSearchParams(window.location.search);
-    const movieKey = urlParams.get('movie') || 'dune2';
-    const dayParam = urlParams.get('day') || 'ma';
-    const timeParam = urlParams.get('time') || '18:00';
+    // Időpont mátrix az al-lenyíló vezérléséhez
+    const timeMatrix = {
+        dune2: { ma: ["15:30", "18:00", "21:15"], holnap: ["14:00", "18:00", "20:45"], holnaputan: ["16:30", "19:45"] },
+        inception: { ma: ["17:00", "20:00"], holnap: ["19:00"], holnaputan: [] },
+        interstellar: { ma: ["21:00"], holnap: [], holnaputan: ["18:00", "21:30"] }
+    };
 
-    const dayNames = { ma: "Ma", holnap: "Holnap", holnaputan: "Holnapután" };
-    document.getElementById('active-movie-meta').innerText = `Vetítés: ${dayNames[dayParam]} | Időpont: ${timeParam}`;
-
+    const movieSelect = document.getElementById('select-movie');
+    const daySelect = document.getElementById('select-day');
+    const timeSelect = document.getElementById('select-time');
     const mapContainer = document.getElementById('map');
     const nextBtn = document.getElementById('next-btn');
     const ticketEntries = document.getElementById('ticket-entries');
@@ -122,14 +146,51 @@
     const modalSeatTitle = document.getElementById('modal-seat-title');
     const modalCancel = document.getElementById('modal-cancel');
 
-    let selectedTickets = []; // Tárolás: { seatId, type, price }
+    let selectedTickets = [];
     let pendingSeatElement = null;
     let pendingSeatId = null;
+
+    // URL alapú kezdeti paraméter betöltés (ha a táblázatból érkezik valaki)
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('movie')) movieSelect.value = urlParams.get('movie');
+    if(urlParams.get('day')) daySelect.value = urlParams.get('day');
+
+    function updateTimeOptions() {
+        const movie = movieSelect.value;
+        const day = daySelect.value;
+        const times = timeMatrix[movie][day] || [];
+        
+        timeSelect.innerHTML = '';
+        if(times.length === 0) {
+            const opt = document.createElement('option');
+            opt.innerText = "Nincs vetítés ezen a napon";
+            opt.disabled = true;
+            timeSelect.appendChild(opt);
+        } else {
+            times.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.innerText = t;
+                timeSelect.appendChild(opt);
+            });
+            // Ha az URL-ből kaptunk pontos időpontot, állítsuk be
+            const urlTime = urlParams.get('time');
+            if(urlTime && times.includes(urlTime)) {
+                timeSelect.value = urlTime;
+            }
+        }
+    }
 
     async function loadHall() {
         mapContainer.innerHTML = '';
         selectedTickets = [];
         updateUI();
+
+        const movieKey = movieSelect.value;
+        const dayKey = daySelect.value;
+        const timeKey = timeSelect.value;
+
+        if(!timeKey || timeSelect.options[0].disabled) return;
 
         const occupiedSeats = new Set();
         
@@ -137,8 +198,7 @@
             const querySnapshot = await getDocs(collection(db, "tickets"));
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                // Olyan székeket keresünk, amik ehhez a filmhez, naphoz és időponthoz tartoznak és érvényesek
-                if (data.movieKey === movieKey && data.day === dayParam && data.time === timeParam && data.status !== "Voided") {
+                if (data.movieKey === movieKey && data.day === dayKey && data.time === timeKey && data.status !== "Voided") {
                     occupiedSeats.add(data.seatId);
                 }
             });
@@ -158,12 +218,10 @@
                 } else {
                     seat.addEventListener('click', () => {
                         if (seat.classList.contains('selected')) {
-                            // Ha már ki volt választva, kattintásra eltávolítjuk a listából
                             selectedTickets = selectedTickets.filter(t => t.seatId !== seatId);
                             seat.classList.remove('selected');
                             updateUI();
                         } else {
-                            // Új szék választásakor megnyitjuk a típusválasztó ablakot
                             pendingSeatElement = seat;
                             pendingSeatId = seatId;
                             modalSeatTitle.innerText = `${r}. sor ${c}. szék`;
@@ -176,15 +234,12 @@
         }
     }
 
-    // Modal opciók kezelése (Felnőtt / Gyermek gombok)
     document.querySelectorAll('.modal-btn[data-type]').forEach(button => {
         button.addEventListener('click', () => {
             const type = button.getAttribute('data-type');
             const price = parseInt(button.getAttribute('data-price'));
-
             selectedTickets.push({ seatId: pendingSeatId, type, price });
             pendingSeatElement.classList.add('selected');
-            
             modalOverlay.style.display = "none";
             updateUI();
         });
@@ -192,13 +247,10 @@
 
     modalCancel.addEventListener('click', () => {
         modalOverlay.style.display = "none";
-        pendingSeatElement = null;
-        pendingSeatId = null;
     });
 
     function removeTicket(seatId) {
         selectedTickets = selectedTickets.filter(t => t.seatId !== seatId);
-        // Megkeressük a térképen a széket és levesszük a jelölést
         const seats = document.querySelectorAll('.seat');
         seats.forEach(s => {
             if(s.innerText === seatId) s.classList.remove('selected');
@@ -219,7 +271,6 @@
 
         selectedTickets.forEach(ticket => {
             totalPrice += ticket.price;
-            
             const div = document.createElement('div');
             div.classList.add('ticket-item');
             div.innerHTML = `
@@ -229,7 +280,6 @@
             ticketEntries.appendChild(div);
         });
 
-        // Törlés gombok eseménykezelése a listában
         document.querySelectorAll('.remove-ticket').forEach(btn => {
             btn.addEventListener('click', () => {
                 removeTicket(btn.getAttribute('data-id'));
@@ -240,18 +290,24 @@
         nextBtn.disabled = false;
     }
 
+    // Amikor változik a film vagy a nap, újra kell konfigurálni az időpontokat és a termet
+    movieSelect.addEventListener('change', () => { updateTimeOptions(); loadHall(); });
+    daySelect.addEventListener('change', () => { updateTimeOptions(); loadHall(); });
+    timeSelect.addEventListener('change', loadHall);
+
     nextBtn.addEventListener('click', () => {
-        sessionStorage.setItem('booking_movie_key', movieKey);
-        sessionStorage.setItem('booking_movie_name', document.getElementById('active-movie-title').innerText);
-        sessionStorage.setItem('booking_day', dayParam);
-        sessionStorage.setItem('booking_time', timeParam);
+        sessionStorage.setItem('booking_movie_key', movieSelect.value);
+        sessionStorage.setItem('booking_movie_name', movieSelect.options[movieSelect.selectedIndex].text);
+        sessionStorage.setItem('booking_day', daySelect.value);
+        sessionStorage.setItem('booking_time', timeSelect.value);
         sessionStorage.setItem('booking_tickets', JSON.stringify(selectedTickets));
 
         const fakeTxId = "TX-" + Math.floor(100000 + Math.random() * 900000);
-        // Nem dob vissza, a megvásárlás (payment.html) után a verification.step.html-re fog lépni a rendszer
         window.location.href = `payment.html?id=${fakeTxId}`;
     });
 
+    // Inicializálás
+    updateTimeOptions();
     loadHall();
 </script>
 </body>
