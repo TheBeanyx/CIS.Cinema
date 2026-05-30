@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineMax - Helyfoglalás és Jegyek</title>
+    <title>CineMax - Helyfoglalás</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --seat-free: #64748b; --seat-selected: #10b981; --seat-occupied: #334155; --text: #f8fafc; --text-muted: #94a3b8; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         
-        /* Lenyíló menük konténere */
         .booking-selectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-top: 4px solid var(--primary); }
         .selector-group { display: flex; flex-direction: column; gap: 5px; }
         .selector-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: bold; }
@@ -35,7 +34,6 @@
         .btn:hover { background: #dc2626; }
         .btn:disabled { background: #475569; cursor: not-allowed; }
 
-        /* MODAL / JEGYTÍPUS VÁLASZTÓ WINDOW */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; display: none; }
         .modal { background: #1e293b; padding: 25px; border-radius: 12px; width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #475569; }
         .modal h3 { margin-bottom: 15px; }
@@ -50,7 +48,7 @@
     
     <div class="booking-selectors">
         <div class="selector-group">
-            <label>Film</label>
+            <label>Kiválasztott film</label>
             <select id="select-movie">
                 <option value="dune2">Dune: Part Two</option>
                 <option value="inception">Inception - Eredet</option>
@@ -58,16 +56,8 @@
             </select>
         </div>
         <div class="selector-group">
-            <label>Nap</label>
-            <select id="select-day">
-                <option value="ma">Ma</option>
-                <option value="holnap">Holnap</option>
-                <option value="holnaputan">Holnapután</option>
-            </select>
-        </div>
-        <div class="selector-group">
-            <label>Időpontok</label>
-            <select id="select-time">
+            <label>Vetítés dátuma és ideje</label>
+            <select id="select-datetime">
                 </select>
         </div>
     </div>
@@ -102,7 +92,7 @@
 
 <div class="modal-overlay" id="ticket-modal">
     <div class="modal">
-        <h3 id="modal-seat-title">Szék: 1-1</h3>
+        <h3 id="modal-seat-title">Szék kiválasztása</h3>
         <p style="color: var(--text-muted); font-size: 0.9rem;">Kérjük, válaszd ki a jegy típusát:</p>
         <div class="modal-options">
             <button class="modal-btn" data-type="Felnőtt" data-price="2500">Felnőtt (2500 Ft)</button>
@@ -114,7 +104,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCl7wsIHzdHcmnJSMZZCieacZROxlJnxvI",
@@ -128,16 +118,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Időpont mátrix az al-lenyíló vezérléséhez
-    const timeMatrix = {
-        dune2: { ma: ["15:30", "18:00", "21:15"], holnap: ["14:00", "18:00", "20:45"], holnaputan: ["16:30", "19:45"] },
-        inception: { ma: ["17:00", "20:00"], holnap: ["19:00"], holnaputan: [] },
-        interstellar: { ma: ["21:00"], holnap: [], holnaputan: ["18:00", "21:30"] }
-    };
-
     const movieSelect = document.getElementById('select-movie');
-    const daySelect = document.getElementById('select-day');
-    const timeSelect = document.getElementById('select-time');
+    const datetimeSelect = document.getElementById('select-datetime');
     const mapContainer = document.getElementById('map');
     const nextBtn = document.getElementById('next-btn');
     const ticketEntries = document.getElementById('ticket-entries');
@@ -150,35 +132,48 @@
     let pendingSeatElement = null;
     let pendingSeatId = null;
 
-    // URL alapú kezdeti paraméter betöltés (ha a táblázatból érkezik valaki)
+    // URL paraméterek beolvasása az automatikus beállításhoz
     const urlParams = new URLSearchParams(window.location.search);
     if(urlParams.get('movie')) movieSelect.value = urlParams.get('movie');
-    if(urlParams.get('day')) daySelect.value = urlParams.get('day');
 
-    function updateTimeOptions() {
-        const movie = movieSelect.value;
-        const day = daySelect.value;
-        const times = timeMatrix[movie][day] || [];
+    async function loadDatetimeOptions() {
+        const movieKey = movieSelect.value;
+        datetimeSelect.innerHTML = '<option disabled>Időpontok betöltése...</option>';
         
-        timeSelect.innerHTML = '';
-        if(times.length === 0) {
-            const opt = document.createElement('option');
-            opt.innerText = "Nincs vetítés ezen a napon";
-            opt.disabled = true;
-            timeSelect.appendChild(opt);
-        } else {
-            times.forEach(t => {
+        try {
+            const q = query(collection(db, "showtimes"), where("movieKey", "==", movieKey));
+            const querySnapshot = await getDocs(q);
+            datetimeSelect.innerHTML = '';
+
+            if(querySnapshot.empty) {
                 const opt = document.createElement('option');
-                opt.value = t;
-                opt.innerText = t;
-                timeSelect.appendChild(opt);
-            });
-            // Ha az URL-ből kaptunk pontos időpontot, állítsuk be
-            const urlTime = urlParams.get('time');
-            if(urlTime && times.includes(urlTime)) {
-                timeSelect.value = urlTime;
+                opt.innerText = "Nincs vetítési időpont";
+                opt.disabled = true;
+                datetimeSelect.appendChild(opt);
+                return;
             }
+
+            querySnapshot.forEach(doc => {
+                const data = doc.data();
+                const opt = document.createElement('option');
+                // Értéknek elmentjük a dátum és idő elválasztott formáját
+                opt.value = `${data.date}|${data.time}`;
+                opt.innerText = `${data.date} - ${data.time}`;
+                datetimeSelect.appendChild(opt);
+            });
+
+            // Ha az URL tartalmazott pontos dátumot és időt, megpróbáljuk kiválasztani
+            const urlDate = urlParams.get('date');
+            const urlTime = urlParams.get('time');
+            if(urlDate && urlTime) {
+                datetimeSelect.value = `${urlDate}|${urlTime}`;
+            }
+
+        } catch (e) {
+            console.error(e);
         }
+        
+        loadHall();
     }
 
     async function loadHall() {
@@ -187,10 +182,9 @@
         updateUI();
 
         const movieKey = movieSelect.value;
-        const dayKey = daySelect.value;
-        const timeKey = timeSelect.value;
-
-        if(!timeKey || timeSelect.options[0].disabled) return;
+        if(!datetimeSelect.value || datetimeSelect.options[0].disabled) return;
+        
+        const [selectedDate, selectedTime] = datetimeSelect.value.split('|');
 
         const occupiedSeats = new Set();
         
@@ -198,7 +192,8 @@
             const querySnapshot = await getDocs(collection(db, "tickets"));
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                if (data.movieKey === movieKey && data.day === dayKey && data.time === timeKey && data.status !== "Voided") {
+                // Összehasonlítás a Firebase-ből jövő valódi dátummezővel is!
+                if (data.movieKey === movieKey && data.date === selectedDate && data.time === selectedTime && data.status !== "Voided") {
                     occupiedSeats.add(data.seatId);
                 }
             });
@@ -245,16 +240,12 @@
         });
     });
 
-    modalCancel.addEventListener('click', () => {
-        modalOverlay.style.display = "none";
-    });
+    modalCancel.addEventListener('click', () => { modalOverlay.style.display = "none"; });
 
     function removeTicket(seatId) {
         selectedTickets = selectedTickets.filter(t => t.seatId !== seatId);
         const seats = document.querySelectorAll('.seat');
-        seats.forEach(s => {
-            if(s.innerText === seatId) s.classList.remove('selected');
-        });
+        seats.forEach(s => { if(s.innerText === seatId) s.classList.remove('selected'); });
         updateUI();
     }
 
@@ -281,34 +272,34 @@
         });
 
         document.querySelectorAll('.remove-ticket').forEach(btn => {
-            btn.addEventListener('click', () => {
-                removeTicket(btn.getAttribute('data-id'));
-            });
+            btn.addEventListener('click', () => { removeTicket(btn.getAttribute('data-id')); });
         });
 
         document.getElementById('summary-price').innerText = totalPrice.toLocaleString() + " Ft";
         nextBtn.disabled = false;
     }
 
-    // Amikor változik a film vagy a nap, újra kell konfigurálni az időpontokat és a termet
-    movieSelect.addEventListener('change', () => { updateTimeOptions(); loadHall(); });
-    daySelect.addEventListener('change', () => { updateTimeOptions(); loadHall(); });
-    timeSelect.addEventListener('change', loadHall);
+    movieSelect.addEventListener('change', loadDatetimeOptions);
+    datetimeSelect.addEventListener('change', loadHall);
 
+    // KÖZVETLEN ÁTIRÁNYÍTÁS A PAYMENT.HTML-RE (Nincs visszadobás)
     nextBtn.addEventListener('click', () => {
+        const [selectedDate, selectedTime] = datetimeSelect.value.split('|');
+
         sessionStorage.setItem('booking_movie_key', movieSelect.value);
         sessionStorage.setItem('booking_movie_name', movieSelect.options[movieSelect.selectedIndex].text);
-        sessionStorage.setItem('booking_day', daySelect.value);
-        sessionStorage.setItem('booking_time', timeSelect.value);
+        sessionStorage.setItem('booking_date', selectedDate);
+        sessionStorage.setItem('booking_time', selectedTime);
         sessionStorage.setItem('booking_tickets', JSON.stringify(selectedTickets));
 
         const fakeTxId = "TX-" + Math.floor(100000 + Math.random() * 900000);
+        
+        // Azonnali ugrás a fizetési felületre az egyedi vásárlási ID-val
         window.location.href = `payment.html?id=${fakeTxId}`;
     });
 
-    // Inicializálás
-    updateTimeOptions();
-    loadHall();
+    // Indítás
+    loadDatetimeOptions();
 </script>
 </body>
 </html>
