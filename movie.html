@@ -3,49 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineMax - Filmek és Időpontok</title>
+    <title>CineMax - Műsortáblázat</title>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --primary: #ef4444; --text: #f8fafc; --text-muted: #94a3b8; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 800px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .container { width: 100%; max-width: 900px; background: var(--card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
         
-        .movie-header { display: flex; gap: 20px; margin-bottom: 30px; border-bottom: 1px solid #334155; padding-bottom: 25px; }
-        .movie-title { font-size: 2rem; color: #fff; margin-bottom: 10px; }
+        h1 { text-align: center; margin-bottom: 25px; }
+        .selector-box { margin-bottom: 30px; text-align: center; }
+        select { background: #334155; color: white; border: 1px solid #475569; padding: 12px 20px; border-radius: 8px; font-size: 1.1rem; width: 100%; max-width: 400px; outline: none; cursor: pointer; }
         
-        .schedule-section { margin-top: 20px; }
-        .day-title { font-size: 1.2rem; color: #f59e0b; margin: 20px 0 10px 0; border-left: 3px solid #f59e0b; padding-left: 10px; }
-        .time-slots { display: flex; gap: 15px; flex-wrap: wrap; }
+        /* Táblázat stílusok */
+        .schedule-table-wrapper { display: none; margin-top: 20px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; background: rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; border-bottom: 1px solid #334155; }
+        th { background: #334155; color: #f59e0b; font-weight: bold; }
+        tr:last-child td { border-bottom: none; }
         
-        .time-btn { background: #334155; color: white; border: 1px solid #475569; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; text-decoration: none; transition: 0.2s; text-align: center; }
-        .time-btn:hover { background: var(--primary); border-color: var(--primary); transform: translateY(-2px); }
-        .time-btn span { display: block; font-size: 0.75rem; color: var(--text-muted); font-weight: normal; margin-top: 2px; }
+        .time-link { display: inline-block; background: #475569; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.9rem; margin-right: 8px; transition: 0.2s; }
+        .time-link:hover { background: var(--primary); transform: translateY(-1px); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="movie-header">
-        <div>
-            <h1 class="movie-title">Dune: Part Two</h1>
-            <p style="color: var(--text-muted); margin-bottom: 15px;">Sci-Fi / Kaland | 166 perc | 2024</p>
-            <p>Paul Atreides bosszúhadjárata azok ellen, akik elpusztították a családját, miközben megpróbálja megakadályozni a szörnyű jövőt, amit csak ő láthat előre.</p>
-        </div>
+    <h1>Mozi Műsortáblázat</h1>
+    
+    <div class="selector-box">
+        <label style="display:block; margin-bottom: 10px; color: var(--text-muted);">Válasszon egy filmet a műsorrend megtekintéséhez:</label>
+        <select id="movie-picker">
+            <option value="" disabled selected>-- Válasszon filmet --</option>
+            <option value="dune2">Dune: Part Two</option>
+            <option value="inception">Inception - Eredet</option>
+            <option value="interstellar">Interstellar</option>
+        </select>
     </div>
 
-    <h3 style="margin-top: 30px;">Válassz vetítési időpontot:</h3>
-    
-    <div class="schedule-section">
-        <div class="day-title">Ma (Szombat)</div>
-        <div class="time-slots">
-            <a href="movie-book.html?movie=dune2&day=ma&time=15:30" class="time-btn">15:30 <span>3D (Szinkron)</span></a>
-            <a href="movie-book.html?movie=dune2&day=ma&time=18:00" class="time-btn">18:00 <span>VIP (Feliratos)</span></a>
-            <a href="movie-book.html?movie=dune2&day=ma&time=21:15" class="time-btn">21:15 <span>IMAX 2D</span></a>
-        </div>
+    <div class="schedule-table-wrapper" id="table-wrapper">
+        <h3 id="selected-movie-title" style="margin-bottom: 15px; color: #fff;"></h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nap</th>
+                    <th>Terem / Technológia</th>
+                    <th>Időpontok (Kattintson a foglaláshoz)</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
 
-        <div class="day-title">Holnap (Vasárnap)</div>
-        <div class="time-slots">
-            <a href="movie-book.html?movie=dune2&day=holnap&time=14:00" class="time-btn">14:00 <span>2D (Szinkron)</span></a>
-            <a href="movie-book.html?movie=dune2&day=holnap&time=18:00" class="time-btn">18:00 <span>VIP (Feliratos)</span></a>
-            <a href="movie-book.html?movie=dune2&day=holnap&time=20:45" class="time-btn">20:45 <span>IMAX 2D</span></a>
-        </div>
+<script>
+    // Vetítési adatok struktúrája
+    const scheduleData = {
+        "dune2": {
+            title: "Dune: Part Two (Műsor)",
+            rows: [
+                { dayName: "Ma", dayKey: "ma", room: "1. Terem (IMAX 3D)", times: ["15:30", "21:15"] },
+                { dayName: "Ma", dayKey: "ma", room: "VIP Terem (2D)", times: ["18:00"] },
+                { dayName: "Holnap", dayKey: "holnap", room: "1. Terem (IMAX 3D)", times: ["20:45"] },
+                { dayName: "Holnap", dayKey: "holnap", room: "2. Terem (2D Szinkron)", times: ["14:00", "18:00"] },
+                { dayName: "Holnapután", dayKey: "holnaputan", room: "1. Terem (IMAX 3D)", times: ["19:45"] }
+            ]
+        },
+        "inception": {
+            title: "Inception - Eredet (Műsor)",
+            rows: [
+                { dayName: "Ma", dayKey: "ma", room: "3. Terem (Digital 2D)", times: ["17:00", "20:00"] },
+                { dayName: "Holnap", dayKey: "holnap", room: "3. Terem (Digital 2D)", times: ["19:00"] }
+            ]
+        },
+        "interstellar": {
+            title: "Interstellar (Műsor)",
+            rows: [
+                { dayName: "Ma", dayKey: "ma", room: "2. Terem (4K Laser)", times: ["21:00"] },
+                { dayName: "Holnapután", dayKey: "holnaputan", room: "2. Terem (4K Laser)", times: ["18:00", "21:30"] }
+            ]
+        }
+    };
+
+    const moviePicker = document.getElementById('movie-picker');
+    const tableWrapper = document.getElementById('table-wrapper');
+    const selectedMovieTitle = document.getElementById('selected-movie-title');
+    const tableBody = document.getElementById('table-body');
+
+    moviePicker.addEventListener('change', () => {
+        const movieKey = moviePicker.value;
+        const data = scheduleData[movieKey];
+        
+        if (!data) return;
+
+        selectedMovieTitle.innerText = data.title;
+        tableBody.innerHTML = '';
+
+        // Táblázat sorainak legenerálása
+        data.rows.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            // Nap oszlop
+            const tdDay = document.createElement('td');
+            tdDay.innerHTML = `<strong>${row.dayName}</strong>`;
+            
+            // Terem oszlop
+            const tdRoom = document.createElement('td');
+            tdRoom.innerText = row.room;
+            
+            // Időpontok oszlop gombokkal
+            const tdTimes = document.createElement('td');
+            row.times.forEach(time => {
+                const a = document.createElement('a');
+                a.classList.add('time-link');
+                // Átadjuk az összes adatot URL paraméterben a booking-nak
+                a.href = `movie-book.html?movie=${movieKey}&day=${row.dayKey}&time=${time}`;
+                a.innerText = time;
+                tdTimes.appendChild(a);
+            });
+
+            tr.appendChild(tdDay);
+            tr.appendChild(tdRoom);
+            tr.appendChild(tdTimes);
+            tableBody.appendChild(tr);
+        });
+
+        tableWrapper.style.display = "block";
+    });
+</script>
+</body>
+</html>
