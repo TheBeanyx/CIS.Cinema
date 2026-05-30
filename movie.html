@@ -3,78 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineMax - Műsorajánló és Kereső</title>
+    <title>CineMax - Műsorajánló</title>
     <style>
         :root { 
             --bg: #0f172a; 
             --card: #1e293b; 
             --primary: #ef4444; 
-            --primary-hover: #dc2626;
             --text: #f8fafc; 
             --text-muted: #94a3b8; 
             --accent: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 1200px; }
+        .container { width: 100%; max-width: 800px; }
         
-        h1 { text-align: center; margin-bottom: 10px; font-size: 2.5rem; letter-spacing: 1px; }
-        .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 40px; }
+        h1 { text-align: center; margin-bottom: 10px; font-size: 2.3rem; }
+        .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 30px; }
 
         /* Kereső és szűrő sáv */
-        .controls { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .search-box { flex: 1; min-width: 250px; }
+        .controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; background: var(--card); padding: 20px; border-radius: 12px; }
         .search-box input { width: 100%; background: #334155; color: white; border: 1px solid #475569; padding: 12px 20px; border-radius: 8px; font-size: 1rem; outline: none; }
         .filter-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
-        .filter-btn { background: #334155; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .filter-btn { background: #334155; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: 0.2s; }
         .filter-btn.active, .filter-btn:hover { background: var(--primary); }
 
-        /* Film rács elrendezés */
-        .movies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        /* Egymás alatti lista elrendezés */
+        .movies-list { display: flex; flex-direction: column; gap: 12px; }
         
-        /* Film Kártya stílus */
-        .movie-card { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.3s, box-shadow 0.3s; border: 1px solid #334155; display: flex; flex-direction: column; }
-        .movie-card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(239, 68, 68, 0.15); border-color: #475569; }
+        /* Kis kártya alaphelyzetben */
+        .movie-card { background: var(--card); border-radius: 8px; padding: 15px 20px; cursor: pointer; transition: all 0.3s ease; border: 1px solid #334155; display: flex; flex-direction: column; }
+        .movie-card:hover { border-color: #64748b; background: #24324d; }
         
-        /* Kártya dekorációs kép-helyettesítő */
-        .movie-thumb { height: 140px; background: linear-gradient(135deg, #1e1b4b, #311042); display: flex; align-items: center; justify-content: center; font-size: 3rem; position: relative; }
-        .movie-thumb::after { content: '🎬'; }
-        .movie-card[data-cat="mese"] .movie-thumb { background: linear-gradient(135deg, #1e3a8a, #0d9488); }
-        .movie-card[data-cat="mese"] .movie-thumb::after { content: '🧸'; }
-        .movie-card[data-cat="animacio"] .movie-thumb { background: linear-gradient(135deg, #b45309, #be123c); }
-        .movie-card[data-cat="animacio"] .movie-thumb::after { content: '🐉'; }
-        
-        .movie-info { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
-        .movie-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 8px; color: #fff; }
-        .movie-meta { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .movie-header { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .movie-title { font-size: 1.15rem; font-weight: bold; color: #fff; }
+        .movie-meta { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 
-        /* Lenyíló panel (Műsorrend) */
-        .schedule-panel { display: none; background: #0f172a; border-top: 1px solid #334155; padding: 20px; overflow-x: auto; }
+        /* NAGY KIEMELT MEGJELENÉS KATTINTÁSKOR */
+        .movie-card.active { 
+            background: #1e293b; 
+            border-color: var(--primary); 
+            padding: 30px; 
+            border-radius: 16px;
+            cursor: default;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin: 15px 0;
+        }
+        .movie-card.active .movie-header { border-bottom: 2px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
+        .movie-card.active .movie-title { font-size: 1.8rem; color: var(--primary); }
+        .movie-card.active .movie-meta { font-size: 1rem; color: var(--accent); }
+
+        /* Lenyíló nagy panel (Műsorrend táblázat) */
+        .schedule-panel { display: none; width: 100%; overflow-x: auto; }
         .movie-card.active .schedule-panel { display: block; }
 
-        /* Designos táblázat */
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; }
-        th, td { padding: 12px; border-bottom: 1px solid #1e293b; }
-        th { color: var(--accent); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+        /* Designos táblázat a nagy kártyában */
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.95rem; margin-top: 10px; }
+        th, td { padding: 14px; border-bottom: 1px solid #334155; }
+        th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
         tr:last-child td { border-bottom: none; }
         
-        .time-btn-container { display: flex; flex-wrap: wrap; gap: 6px; }
-        .time-link { background: #334155; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85rem; transition: 0.2s; }
+        .time-btn-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        .time-link { background: #475569; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85rem; transition: 0.2s; }
         .time-link:hover { background: var(--primary); }
         
-        .loading-text { text-align: center; padding: 20px; color: var(--text-muted); font-style: italic; }
-        .no-show { text-align: center; padding: 20px; color: var(--primary); font-size: 0.9rem; }
+        .loading-text { text-align: center; padding: 15px; color: var(--text-muted); font-style: italic; }
+        .no-show { text-align: center; padding: 15px; color: var(--primary); }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>CineMax Mozi</h1>
-    <p class="subtitle">Böngésszen a 90 aktuális filmünk és vetítéseink között</p>
+    <p class="subtitle">Válasszon ki egy filmet a részletes műsorrend megtekintéséhez</p>
     
     <div class="controls">
         <div class="search-box">
-            <input type="text" id="search-input" placeholder="Keresés film cím alapján...">
+            <input type="text" id="search-input" placeholder="Keresés cím alapján...">
         </div>
         <div class="filter-buttons">
             <button class="filter-btn active" data-filter="all">Összes</button>
@@ -84,7 +88,7 @@
         </div>
     </div>
 
-    <div class="movies-grid" id="movies-container">
+    <div class="movies-list" id="movies-container">
         </div>
 </div>
 
@@ -104,103 +108,103 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // FIX ADATBÁZIS: A 90 FILM ALAPADATAI ÉS KATEGÓRIÁI
+    // 90 FILM ALAPADATAI ÉS CÉLKÖZÖNSÉGE
     const staticMovies = [
-        // 1. KATEGÓRIA: RAJZFILMEK ÉS KLASSZIKUSOK (mese)
-        { key: "bogyo_baboca", name: "Bogyó és Babóca", cat: "mese", label: "Gyerek Mese" },
-        { key: "vuk", name: "Vuk", cat: "mese", label: "Gyerek Mese" },
-        { key: "szaffi", name: "Szaffi", cat: "mese", label: "Gyerek Mese" },
-        { key: "ludas_matyi", name: "Lúdas Matyi", cat: "mese", label: "Gyerek Mese" },
-        { key: "macskafogo", name: "Macskafogó", cat: "mese", label: "Klasszikus Rajzfilm" },
-        { key: "kis_macko", name: "A kis mackó kalandjai", cat: "mese", label: "Gyerek Mese" },
-        { key: "matyas_kiraly", name: "Mátyás király meséi", cat: "mese", label: "Gyerek Mese" },
-        { key: "magyar_nepmese", name: "Magyar népmesék", cat: "mese", label: "Gyerek Mese" },
-        { key: "vizipok", name: "Vízipók-csodapók", cat: "mese", label: "Gyerek Mese" },
-        { key: "dr_bubo", name: "Kérem a következőt! - Dr. Bubó", cat: "mese", label: "Gyerek Mese" },
-        { key: "erdofakapitya", name: "Az erdő kapitánya", cat: "mese", label: "Gyerek Mese" },
-        { key: "janos_vitez", name: "János vitéz", cat: "mese", label: "Klasszikus" },
-        { key: "pal_utcaiak", name: "A Pál utcai fiúk", cat: "mese", label: "Ifjúsági Film" },
-        { key: "bakterhaz", name: "Indul a bakterház", cat: "mese", label: "Klasszikus Vígjáték" },
-        { key: "egri_csillagok", name: "Egri csillagok", cat: "mese", label: "Történelmi Túlélő" },
-        { key: "hyppolit", name: "Hyppolit, a lakáj", cat: "mese", label: "Fekete-Fehér Mozi" },
-        { key: "liliomfi", name: "Liliomfi", cat: "mese", label: "Klasszikus Vígjáték" },
-        { key: "meseauto", name: "Meseautó", cat: "mese", label: "Fekete-Fehér Mozi" },
-        { key: "egigero_fu", name: "Égigérő fű", cat: "mese", label: "Gyerek Mozi" },
-        { key: "kemenykalap", name: "Keménykalap és krumpliorr", cat: "mese", label: "Gyerek Mozi" },
-        { key: "koszivu_ember", name: "A kőszívű ember fiai", cat: "mese", label: "Történelmi" },
-        { key: "szerengeti", name: "Szafari a Szerengetin", cat: "mese", label: "Természetfilm" },
-        { key: "ocean_melyen", name: "Az Óceán mélyén", cat: "mese", label: "Természetfilm" },
-        { key: "egyiptom", name: "Rejtélyes Egyiptom", cat: "mese", label: "Ismeretterjesztő" },
-        { key: "vilagegyetem", name: "A Világegyetem titkai", cat: "mese", label: "Dokumentumfilm" },
-        { key: "karpati_vadon", name: "Kárpáti vadon", cat: "mese", label: "Magyar Természetfilm" },
-        { key: "gulliver", name: "Gulliver utazásai", cat: "mese", label: "Kalandfilm" },
-        { key: "robinson", name: "Robinson Crusoe", cat: "mese", label: "Kalandfilm" },
-        { key: "sherlock", name: "Sherlock Holmes kalandjai", cat: "mese", label: "Krimi Klasszikus" },
-        { key: "karacsonyi_enek", name: "Karácsonyi ének", cat: "mese", label: "Családi Ünnepi" },
+        // 1. KATEGÓRIA (mese)
+        { key: "bogyo_baboca", name: "Bogyó és Babóca", cat: "mese", label: "Célközönség: Legkisebbek / Gyerekek" },
+        { key: "vuk", name: "Vuk", cat: "mese", label: "Célközönség: Családi / Gyerekek" },
+        { key: "szaffi", name: "Szaffi", cat: "mese", label: "Célközönség: Családi / Gyerekek" },
+        { key: "ludas_matyi", name: "Lúdas Matyi", cat: "mese", label: "Célközönség: Családi / Gyerekek" },
+        { key: "macskafogo", name: "Macskafogó", cat: "mese", label: "Célközönség: Kamaszok / Felnőttek" },
+        { key: "kis_macko", name: "A kis mackó kalandjai", cat: "mese", label: "Célközönség: Legkisebbek" },
+        { key: "matyas_kiraly", name: "Mátyás király meséi", cat: "mese", label: "Célközönség: Gyerekek" },
+        { key: "magyar_nepmese", name: "Magyar népmesék", cat: "mese", label: "Célközönség: Minden korosztály" },
+        { key: "vizipok", name: "Vízipók-csodapók", cat: "mese", label: "Célközönség: Gyerekek" },
+        { key: "dr_bubo", name: "Kérem a következőt! - Dr. Bubó", cat: "mese", label: "Célközönség: Minden korosztály" },
+        { key: "erdofakapitya", name: "Az erdő kapitánya", cat: "mese", label: "Célközönség: Gyerekek" },
+        { key: "janos_vitez", name: "János vitéz", cat: "mese", label: "Célközönség: Diákok / Ifjúság" },
+        { key: "pal_utcaiak", name: "A Pál utcai fiúk", cat: "mese", label: "Célközönség: Iskolások / Kamaszok" },
+        { key: "bakterhaz", name: "Indul a bakterház", cat: "mese", label: "Célközönség: Felnőttek / Kamaszok" },
+        { key: "egri_csillagok", name: "Egri csillagok", cat: "mese", label: "Célközönség: Iskolások / Kamaszok" },
+        { key: "hyppolit", name: "Hyppolit, a lakáj", cat: "mese", label: "Célközönség: Felnőttek" },
+        { key: "liliomfi", name: "Liliomfi", cat: "mese", label: "Célközönség: Minden korosztály" },
+        { key: "meseauto", name: "Meseautó", cat: "mese", label: "Célközönség: Felnőttek" },
+        { key: "egigero_fu", name: "Égigérő fű", cat: "mese", label: "Célközönség: Gyerekek / Család" },
+        { key: "kemenykalap", name: "Keménykalap és krumpliorr", cat: "mese", label: "Célközönség: Gyerekek / Iskolások" },
+        { key: "koszivu_ember", name: "A kőszívű ember fiai", cat: "mese", label: "Célközönség: Diákok / Felnőttek" },
+        { key: "szerengeti", name: "Szafari a Szerengetin", cat: "mese", label: "Célközönség: Természetkedvelők" },
+        { key: "ocean_melyen", name: "Az Óceán mélyén", cat: "mese", label: "Célközönség: Természetkedvelők" },
+        { key: "egyiptom", name: "Rejtélyes Egyiptom", cat: "mese", label: "Célközönség: Ismeretterjesztő" },
+        { key: "vilagegyetem", name: "A Világegyetem titkai", cat: "mese", label: "Célközönség: Ismeretterjesztő" },
+        { key: "karpati_vadon", name: "Kárpáti vadon", cat: "mese", label: "Célközönség: Minden korosztály" },
+        { key: "gulliver", name: "Gulliver utazásai", cat: "mese", label: "Célközönség: Gyerekek / Család" },
+        { key: "robinson", name: "Robinson Crusoe", cat: "mese", label: "Célközönség: Kamaszok / Ifjúság" },
+        { key: "sherlock", name: "Sherlock Holmes kalandjai", cat: "mese", label: "Célközönség: Felnőttek / Kamaszok" },
+        { key: "karacsonyi_enek", name: "Karácsonyi ének", cat: "mese", label: "Célközönség: Családi" },
 
-        // 2. KATEGÓRIA: KAMASZ- ÉS TÚLÉLŐFILMEK (kamasz)
-        { key: "szamkivetett", name: "Számkivetett", cat: "kamasz", label: "Kamasz / Túlélő" },
-        { key: "mentoexpedicio", name: "A mentőexpedíció", cat: "kamasz", label: "Kamasz / Sci-Fi" },
-        { key: "ut_a_vadonba", name: "Út a vadonba", cat: "kamasz", label: "Kamasz / Kaland" },
-        { key: "pi_elete", name: "Pi élete", cat: "kamasz", label: "Kamasz / Túlélő" },
-        { key: "hat_nap_het_ejszaka", name: "Hat nap, hét éjszaka", cat: "kamasz", label: "Kamasz / Kaland" },
-        { key: "kincsvadaszok", name: "Kincsvadászok", cat: "kamasz", label: "Kamasz Kaland" },
-        { key: "allj_mellem", name: "Stand by Me - Állj mellém!", cat: "kamasz", label: "Kamasz Dráma" },
-        { key: "super8", name: "Szuper 8", cat: "kamasz", label: "Kamasz / Sci-Fi" },
-        { key: "idovonal", name: "Idővonal", cat: "kamasz", label: "Kamasz / Sci-Fi" },
-        { key: "jumanji", name: "Jumanji", cat: "kamasz", label: "Kamasz Kaland" },
-        { key: "zathura", name: "Zathura - Az űrfogócska", cat: "kamasz", label: "Kamasz / Sci-Fi" },
-        { key: "vissza_a_jovobe", name: "Vissza a jövőbe", cat: "kamasz", label: "Kamasz Klasszikus" },
-        { key: "utveszto", name: "Az útvesztő", cat: "kamasz", label: "Kamasz / Akció" },
-        { key: "ehezok_viadala", name: "Az éhezők viadala", cat: "kamasz", label: "Kamasz / Túlélő" },
-        { key: "percy_jackson", name: "Percy Jackson", cat: "kamasz", label: "Kamasz Fantasy" },
-        { key: "vegjatek", name: "Végjáték", cat: "kamasz", label: "Kamasz / Sci-Fi" },
-        { key: "eragon", name: "Eragon", cat: "kamasz", label: "Kamasz Fantasy" },
-        { key: "tintasziv", name: "Tintaszív", cat: "kamasz", label: "Kamasz Fantasy" },
-        { key: "nim_szigete", name: "Nim szigete", cat: "kamasz", label: "Kalandfilm" },
-        { key: "fold_kozeppontja", name: "Utazás a Föld középpontja felé", cat: "kamasz", label: "Kamasz Kaland" },
-        { key: "kemkolykok", name: "Kémkölykök", cat: "kamasz", label: "Kamasz Akció" },
-        { key: "midas_lada", name: "Kalandor: A Midas-láda átka", cat: "kamasz", label: "Kamasz Fantasy" },
-        { key: "zold_lampas", name: "Zöld lámpás: A kezdet", cat: "kamasz", label: "Kamasz Animáció" },
-        { key: "alpha", name: "Alpha", cat: "kamasz", label: "Kamasz / Túlélő" },
-        { key: "127_ora", name: "127 óra", cat: "kamasz", label: "Túlélő Dráma" },
-        { key: "eletben_maradtak", name: "Életben maradtak", cat: "kamasz", label: "Túlélő Dráma" },
-        { key: "sodrodas", name: "Sodródás", cat: "kamasz", label: "Túlélő Dráma" },
-        { key: "jeg_es_fold_kozott", name: "Jég és föld között", cat: "kamasz", label: "Akció / Túlélő" },
-        { key: "a_falu", cat: "kamasz", name: "A falu", label: "Misztikus Kaland" },
-        { key: "hanna", name: "Hanna - Gyilkos természet", cat: "kamasz", label: "Kamasz Akció" },
+        // 2. KATEGÓRIA (kamasz)
+        { key: "szamkivetett", name: "Számkivetett", cat: "kamasz", label: "Célközönség: Kamaszok / Felnőttek" },
+        { key: "mentoexpedicio", name: "A mentőexpedíció", cat: "kamasz", label: "Célközönség: Kamaszok / Sci-Fi rajongók" },
+        { key: "ut_a_vadonba", name: "Út a vadonba", cat: "kamasz", label: "Célközönség: Fiatal felnőttek / Kamaszok" },
+        { key: "pi_elete", name: "Pi élete", cat: "kamasz", label: "Célközönség: Kamaszok / Családi" },
+        { key: "hat_nap_het_ejszaka", name: "Hat nap, hét éjszaka", cat: "kamasz", label: "Célközönség: Kamaszok / Felnőttek" },
+        { key: "kincsvadaszok", name: "Kincsvadászok", cat: "kamasz", label: "Célközönség: Tinédzserek / Kalandvágyók" },
+        { key: "allj_mellem", name: "Stand by Me - Állj mellém!", cat: "kamasz", label: "Célközönség: Kamaszok / Ifjúság" },
+        { key: "super8", name: "Szuper 8", cat: "kamasz", label: "Célközönség: Kamaszok / Sci-Fi rajongók" },
+        { key: "idovonal", name: "Idővonal", cat: "kamasz", label: "Célközönség: Kamaszok / Kalandvágyók" },
+        { key: "jumanji", name: "Jumanji", cat: "kamasz", label: "Célközönség: Tinédzserek / Család" },
+        { key: "zathura", name: "Zathura - Az űrfogócska", cat: "kamasz", label: "Célközönség: Iskolások / Kamaszok" },
+        { key: "vissza_a_jovobe", name: "Vissza a jövőbe", cat: "kamasz", label: "Célközönség: Minden korosztály" },
+        { key: "utveszto", name: "Az útvesztő", cat: "kamasz", label: "Célközönség: Kamaszok / Akciókedvelők" },
+        { key: "ehezok_viadala", name: "Az éhezők viadala", cat: "kamasz", label: "Célközönség: Kamaszok / Fiatal felnőttek" },
+        { key: "percy_jackson", name: "Percy Jackson", cat: "kamasz", label: "Célközönség: Kamaszok / Fantasy kedvelők" },
+        { key: "vegjatek", name: "Végjáték", cat: "kamasz", label: "Célközönség: Kamaszok / Sci-Fi rajongók" },
+        { key: "eragon", name: "Eragon", cat: "kamasz", label: "Célközönség: Kamaszok / Fantasy" },
+        { key: "tintasziv", name: "Tintaszív", cat: "kamasz", label: "Célközönség: Gyerekek / Kamaszok" },
+        { key: "nim_szigete", name: "Nim szigete", cat: "kamasz", label: "Célközönség: Iskolások / Család" },
+        { key: "fold_kozeppontja", name: "Utazás a Föld középpontja felé", cat: "kamasz", label: "Célközönség: Kamaszok / Család" },
+        { key: "kemkolykok", name: "Kémkölykök", cat: "kamasz", label: "Célközönség: Gyerekek / Iskolások" },
+        { key: "midas_lada", name: "Kalandor: A Midas-láda átka", cat: "kamasz", label: "Célközönség: Kamaszok / Kaland" },
+        { key: "zold_lampas", name: "Zöld lámpás: A kezdet", cat: "kamasz", label: "Célközönség: Akció / Sci-Fi kedvelők" },
+        { key: "alpha", name: "Alpha", cat: "kamasz", label: "Célközönség: Kamaszok / Kaland" },
+        { key: "127_ora", name: "127 óra", cat: "kamasz", label: "Célközönség: Felnőttek / Érett kamaszok" },
+        { key: "eletben_maradtak", name: "Életben maradtak", cat: "kamasz", label: "Célközönség: Felnőttek / Érett kamaszok" },
+        { key: "sodrodas", name: "Sodródás", cat: "kamasz", label: "Célközönség: Felnőttek / Kamaszok" },
+        { key: "jeg_es_fold_kozott", name: "Jég és föld között", cat: "kamasz", label: "Célközönség: Kamaszok / Felnőttek" },
+        { key: "a_falu", name: "A falu", cat: "kamasz", label: "Célközönség: Érett kamaszok / Felnőttek" },
+        { key: "hanna", name: "Hanna - Gyilkos természet", cat: "kamasz", label: "Célközönség: Kamaszok / Akció" },
 
-        // 3. KATEGÓRIA: CSALÁDI ÉS 3D ANIMÁCIÓK (animacio)
-        { key: "igy_neveld_a_sarkanyodat", name: "Így neveld a sárkányodat", cat: "animacio", label: "Családi Animáció" },
-        { key: "jegkorszak", name: "Jégkorszak", cat: "animacio", label: "Családi Animáció" },
-        { key: "shrek", name: "Shrek", cat: "animacio", label: "Családi Animáció" },
-        { key: "madagaszkar", name: "Madagaszkár", cat: "animacio", label: "Családi Animáció" },
-        { key: "kung_fu_panda", name: "Kung Fu Panda", cat: "animacio", label: "Családi Animáció" },
-        { key: "gru", name: "Gru", cat: "animacio", label: "Családi Animáció" },
-        { key: "aranyhaj", name: "Aranyhaj és a nagy gubanc", cat: "animacio", label: "Családi Animáció" },
-        { key: "megaagy", name: "Megamind - Megaagy", cat: "animacio", label: "Családi Animáció" },
-        { key: "szorny_rt", name: "Szörny Rt.", cat: "animacio", label: "Családi Animáció" },
-        { key: "fel", name: "Fel!", cat: "animacio", label: "Családi Animáció" },
-        { key: "hos6os", name: "Hős6os", cat: "animacio", label: "Családi Animáció" },
-        { key: "ronto_ralph", name: "Rontó Ralph", cat: "animacio", label: "Családi Animáció" },
-        { key: "croodek", name: "Croodék", cat: "animacio", label: "Családi Animáció" },
-        { key: "turbo", name: "Turbó", cat: "animacio", label: "Családi Animáció" },
-        { key: "rio", name: "Rio", cat: "animacio", label: "Családi Animáció" },
-        { key: "ot_legenda", name: "Öt legenda", cat: "animacio", label: "Családi Animáció" },
-        { key: "epic", name: "Felhőkarcoló kaland (Epic)", cat: "animacio", label: "Családi Animáció" },
-        { key: "jegvarazs", name: "Jégvarázs", cat: "animacio", label: "Családi Animáció" },
-        { key: "elvitte_a_viz", name: "Elvitte a víz", cat: "animacio", label: "Családi Animáció" },
-        { key: "capamese", name: "Cápamese", cat: "animacio", label: "Családi Animáció" },
-        { key: "robotok", name: "Robotok", cat: "animacio", label: "Családi Animáció" },
-        { key: "tul_a_sovenyen", name: "Túl a sövényen", cat: "animacio", label: "Családi Animáció" },
-        { key: "eszeveszett_birodalom", name: "Eszeveszett birodalom", cat: "animacio", label: "Családi Animáció" },
-        { key: "kincses_bolygo", name: "Kincses bolygó", cat: "animacio", label: "Családi Animáció" },
-        { key: "atlantisz", name: "Atlantisz", cat: "animacio", label: "Családi Animáció" },
-        { key: "szilaj", name: "Szilaj", cat: "animacio", label: "Családi Animáció" },
-        { key: "mackotestver", name: "Mackótestvér", cat: "animacio", label: "Családi Animáció" },
-        { key: "sinbad", name: "Sinbad", cat: "animacio", label: "Családi Animáció" },
-        { key: "arthur", name: "Arthur és a villangók", cat: "animacio", label: "Családi Animáció" },
-        { key: "horton", name: "Horton", cat: "animacio", label: "Családi Animáció" }
+        // 3. KATEGÓRIA (animacio)
+        { key: "igy_neveld_a_sarkanyodat", name: "Így neveld a sárkányodat", cat: "animacio", label: "Célközönség: Családi / Kamaszok" },
+        { key: "jegkorszak", name: "Jégkorszak", cat: "animacio", label: "Célközönség: Családi / Mindenki" },
+        { key: "shrek", name: "Shrek", cat: "animacio", label: "Családi / Mindenki" },
+        { key: "madagaszkar", name: "Madagaszkár", cat: "animacio", label: "Családi / Mindenki" },
+        { key: "kung_fu_panda", name: "Kung Fu Panda", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "gru", name: "Gru", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "aranyhaj", name: "Aranyhaj és a nagy gubanc", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "megaagy", name: "Megamind - Megaagy", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "szorny_rt", name: "Szörny Rt.", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "fel", name: "Fel!", cat: "animacio", label: "Családi / Mindenki" },
+        { key: "hos6os", name: "Hős6os", cat: "animacio", label: "Családi / Kamaszok" },
+        { key: "ronto_ralph", name: "Rontó Ralph", cat: "animacio", label: "Családi / Gamer fiatalok" },
+        { key: "croodek", name: "Croodék", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "turbo", name: "Turbó", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "rio", name: "Rio", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "ot_legenda", name: "Öt legenda", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "epic", name: "Felhőkarcoló kaland (Epic)", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "jegvarazs", name: "Jégvarázs", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "elvitte_a_viz", name: "Elvitte a víz", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "capamese", name: "Cápamese", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "robotok", name: "Robotok", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "tul_a_sovenyen", name: "Túl a sövényen", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "eszeveszett_birodalom", name: "Eszeveszett birodalom", cat: "animacio", label: "Családi / Mindenki" },
+        { key: "kincses_bolygo", name: "Kincses bolygó", cat: "animacio", label: "Családi / Kamaszok" },
+        { key: "atlantisz", name: "Atlantisz", cat: "animacio", label: "Családi / Kamaszok" },
+        { key: "szilaj", name: "Szilaj", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "mackotestver", name: "Mackótestvér", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "sinbad", name: "Sinbad", cat: "animacio", label: "Családi / Kamaszok" },
+        { key: "arthur", name: "Arthur és a villangók", cat: "animacio", label: "Családi / Gyerekek" },
+        { key: "horton", name: "Horton", cat: "animacio", label: "Családi / Gyerekek" }
     ];
 
     const container = document.getElementById('movies-container');
@@ -210,7 +214,7 @@
     let currentFilter = 'all';
     let currentSearch = '';
 
-    // RÁCS ÉS KÁRTYÁK GENERÁLÁSA
+    // LISTASOROK GENERÁLÁSA
     function renderMovies() {
         container.innerHTML = '';
         
@@ -223,27 +227,24 @@
         filtered.forEach(movie => {
             const card = document.createElement('div');
             card.classList.add('movie-card');
-            card.setAttribute('data-cat', movie.cat);
             
             card.innerHTML = `
-                <div class="movie-thumb"></div>
-                <div class="movie-info">
+                <div class="movie-header">
                     <div class="movie-title">${movie.name}</div>
                     <div class="movie-meta">${movie.label}</div>
                 </div>
                 <div class="schedule-panel" id="panel-${movie.key}">
-                    <div class="loading-text">Vetítések betöltése...</div>
+                    <div class="loading-text">Vetítések betöltése a szerverről...</div>
                 </div>
             `;
             
-            // Kártya kattintás esemény (Lenyitás és Firebase lekérés)
+            // Nagyobb kijelzésre váltás kattintáskor
             card.addEventListener('click', (e) => {
-                // Megakadályozzuk, hogy a belső linkekre kattintás újra bezárja a panelt
                 if(e.target.classList.contains('time-link')) return;
 
                 const isActive = card.classList.contains('active');
                 
-                // Összes többi kártya bezárása
+                // Visszazárjuk a többit a letisztult formába
                 document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('active'));
                 
                 if (!isActive) {
@@ -256,7 +257,7 @@
         });
     }
 
-    // FIREBASE IDŐPONTOK LEKÉRÉSE DINAMIKUSAN A LENYÍLÓ PANELBE
+    // FIREBASE FOGLALÁSI TÁBLÁZAT BETÖLTÉSE
     async function loadShowtimes(movieKey, panelId) {
         const panel = document.getElementById(panelId);
         
@@ -265,11 +266,10 @@
             const querySnapshot = await getDocs(q);
             
             if (querySnapshot.empty) {
-                panel.innerHTML = `<div class="no-show">Jelenleg nincs aktív vetítési időpont ehhez a filmhez.</div>`;
+                panel.innerHTML = `<div class="no-show">Jelenleg nincs aktív vetítési időpont kiírva.</div>`;
                 return;
             }
 
-            // Adatok rendezése és csoportosítása dátum + terem szerint
             const scheduleMap = {};
             
             querySnapshot.forEach(doc => {
@@ -288,17 +288,15 @@
                 }
             });
 
-            // Időpontok sorbarendezése csoporton belül
             Object.keys(scheduleMap).forEach(k => scheduleMap[k].times.sort());
 
-            // Táblázat felépítése
             let tableHtml = `
                 <table>
                     <thead>
                         <tr>
                             <th>Dátum</th>
                             <th>Terem</th>
-                            <th>Időpontok (Foglalás)</th>
+                            <th>Időpontok (Kattintson a foglaláshoz)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -324,11 +322,11 @@
 
         } catch (error) {
             console.error("Hiba:", error);
-            panel.innerHTML = `<div class="no-show">Szerver hiba az adatok betöltésekor.</div>`;
+            panel.innerHTML = `<div class="no-show">Szerver hiba történt az adatok lekérésekor.</div>`;
         }
     }
 
-    // KERESŐ ÉS SZŰRŐ ESEMÉNYKEZELŐK
+    // KERESŐ ÉS SZŰRŐ PARANCSOK
     searchInput.addEventListener('input', (e) => {
         currentSearch = e.target.value;
         renderMovies();
@@ -343,7 +341,6 @@
         });
     });
 
-    // Kezdő futtatás: összes film kirajzolása
     renderMovies();
 </script>
 </body>
