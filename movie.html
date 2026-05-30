@@ -14,7 +14,6 @@
         .selector-box { margin-bottom: 30px; text-align: center; }
         select { background: #334155; color: white; border: 1px solid #475569; padding: 12px 20px; border-radius: 8px; font-size: 1.1rem; width: 100%; max-width: 400px; outline: none; cursor: pointer; }
         
-        /* Táblázat stílusok */
         .schedule-table-wrapper { display: none; margin-top: 20px; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; background: rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; }
         th, td { padding: 15px; border-bottom: 1px solid #334155; }
@@ -45,9 +44,9 @@
         <table>
             <thead>
                 <tr>
-                    <th>Nap</th>
-                    <th>Terem / Technológia</th>
-                    <th>Időpontok (Kattintson a foglaláshoz)</th>
+                    <th>Dátum</th>
+                    <th>Terem</th>
+                    <th>Időpont (Foglalás)</th>
                 </tr>
             </thead>
             <tbody id="table-body">
@@ -56,79 +55,76 @@
     </div>
 </div>
 
-<script>
-    // Vetítési adatok struktúrája
-    const scheduleData = {
-        "dune2": {
-            title: "Dune: Part Two (Műsor)",
-            rows: [
-                { dayName: "Ma", dayKey: "ma", room: "1. Terem (IMAX 3D)", times: ["15:30", "21:15"] },
-                { dayName: "Ma", dayKey: "ma", room: "VIP Terem (2D)", times: ["18:00"] },
-                { dayName: "Holnap", dayKey: "holnap", room: "1. Terem (IMAX 3D)", times: ["20:45"] },
-                { dayName: "Holnap", dayKey: "holnap", room: "2. Terem (2D Szinkron)", times: ["14:00", "18:00"] },
-                { dayName: "Holnapután", dayKey: "holnaputan", room: "1. Terem (IMAX 3D)", times: ["19:45"] }
-            ]
-        },
-        "inception": {
-            title: "Inception - Eredet (Műsor)",
-            rows: [
-                { dayName: "Ma", dayKey: "ma", room: "3. Terem (Digital 2D)", times: ["17:00", "20:00"] },
-                { dayName: "Holnap", dayKey: "holnap", room: "3. Terem (Digital 2D)", times: ["19:00"] }
-            ]
-        },
-        "interstellar": {
-            title: "Interstellar (Műsor)",
-            rows: [
-                { dayName: "Ma", dayKey: "ma", room: "2. Terem (4K Laser)", times: ["21:00"] },
-                { dayName: "Holnapután", dayKey: "holnaputan", room: "2. Terem (4K Laser)", times: ["18:00", "21:30"] }
-            ]
-        }
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCl7wsIHzdHcmnJSMZZCieacZROxlJnxvI",
+        authDomain: "creacredit-szuper1212856.firebaseapp.com",
+        projectId: "creacredit-szuper1212856",
+        storageBucket: "creacredit-szuper1212856.firebasestorage.app",
+        messagingSenderId: "480853534754",
+        appId: "1:480853534754:web:92ea16cacdcb382659427b"
     };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     const moviePicker = document.getElementById('movie-picker');
     const tableWrapper = document.getElementById('table-wrapper');
     const selectedMovieTitle = document.getElementById('selected-movie-title');
     const tableBody = document.getElementById('table-body');
 
-    moviePicker.addEventListener('change', () => {
+    moviePicker.addEventListener('change', async () => {
         const movieKey = moviePicker.value;
-        const data = scheduleData[movieKey];
-        
-        if (!data) return;
+        selectedMovieTitle.innerText = moviePicker.options[moviePicker.selectedIndex].text + " (Műsor)";
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Betöltés a Firebase-ből...</td></tr>';
+        tableWrapper.style.display = "block";
 
-        selectedMovieTitle.innerText = data.title;
-        tableBody.innerHTML = '';
+        try {
+            // Lekérjük a 'showtimes' kollekcióból a filmhez tartozó vetítéseket
+            const q = query(collection(db, "showtimes"), where("movieKey", "==", movieKey));
+            const querySnapshot = await getDocs(q);
+            
+            tableBody.innerHTML = '';
 
-        // Táblázat sorainak legenerálása
-        data.rows.forEach(row => {
-            const tr = document.createElement('tr');
-            
-            // Nap oszlop
-            const tdDay = document.createElement('td');
-            tdDay.innerHTML = `<strong>${row.dayName}</strong>`;
-            
-            // Terem oszlop
-            const tdRoom = document.createElement('td');
-            tdRoom.innerText = row.room;
-            
-            // Időpontok oszlop gombokkal
-            const tdTimes = document.createElement('td');
-            row.times.forEach(time => {
+            if (querySnapshot.empty) {
+                tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #ef4444;">Nincs aktív vetítés kiírva ehhez a filmhez.</td></tr>';
+                return;
+            }
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const tr = document.createElement('tr');
+                
+                // 1. Dátum oszlop (Pl: 2026-06-02)
+                const tdDate = document.createElement('td');
+                tdDate.innerHTML = `<strong>${data.date}</strong>`;
+                
+                // 2. Terem oszlop
+                const tdRoom = document.createElement('td');
+                tdRoom.innerText = data.room || "Normál Terem";
+                
+                // 3. Időpont linkként
+                const tdTime = document.createElement('td');
                 const a = document.createElement('a');
                 a.classList.add('time-link');
-                // Átadjuk az összes adatot URL paraméterben a booking-nak
-                a.href = `movie-book.html?movie=${movieKey}&day=${row.dayKey}&time=${time}`;
-                a.innerText = time;
-                tdTimes.appendChild(a);
+                // Továbbadjuk a pontos dátumot és időt a foglalási oldalnak
+                a.href = `movie-book.html?movie=${movieKey}&date=${data.date}&time=${data.time}`;
+                a.innerText = data.time;
+                
+                tdTime.appendChild(a);
+                tr.appendChild(tdDate);
+                tr.appendChild(tdRoom);
+                tr.appendChild(tdTime);
+                tableBody.appendChild(tr);
             });
 
-            tr.appendChild(tdDay);
-            tr.appendChild(tdRoom);
-            tr.appendChild(tdTimes);
-            tableBody.appendChild(tr);
-        });
-
-        tableWrapper.style.display = "block";
+        } catch (error) {
+            console.error("Hiba a vetítések lekérésekor:", error);
+            tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #ef4444;">Szerver hiba történt az adatok betöltésekor.</td></tr>';
+        }
     });
 </script>
 </body>
